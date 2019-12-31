@@ -203,7 +203,7 @@ class LogStash::Inputs::S3 < LogStash::Inputs::Base
     # Currently codecs operates on bytes instead of stream.
     # So all IO stuff: decompression, reading need to be done in the actual
     # input and send as bytes to the codecs.
-    read_file(filename) do |line|
+    read_file(filename) do |line, lineno|
       if stop?
         @logger.warn("Logstash S3 input, stop reading in the middle of the file, we will read it again when logstash is started")
         return false
@@ -235,6 +235,7 @@ class LogStash::Inputs::S3 < LogStash::Inputs::Base
           end
 
           event.set("[@metadata][s3][key]", object.key)
+          event.set("[@metadata][s3][line]", lineno)
 
           queue << event
         end
@@ -292,7 +293,9 @@ class LogStash::Inputs::S3 < LogStash::Inputs::Base
 
   def read_plain_file(filename, block)
     File.open(filename, 'rb') do |file|
-      file.each(&block)
+      file.each do |line|
+       block.call(line, file.lineno)
+      end
     end
   end
 
